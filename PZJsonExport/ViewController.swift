@@ -20,10 +20,17 @@ class ViewController: NSViewController, NSTextViewDelegate, NSUserNotificationCe
     @IBOutlet var messagesTextView: NSTextView!
     @IBOutlet weak var validJsonTipsTF: NSTextField!
     @IBOutlet weak var tipsTextField: NSTextField!
+    @IBOutlet weak var removeComplexCheckbox: NSButton! //去掉复数
     
     @IBAction func saveFiles(_ sender: NSButton) {
         self.saveFiles()
     }
+    
+    @IBAction func checkBoxAction(_ sender: NSButton) {
+        PZJsonInfo.shared.removeComplex = (sender.state == .on)
+        parse()
+    }
+    
     
     @IBAction func rootClassChanged(_ sender: NSTextField) {
         PZJsonInfo.shared.rootClassName = sender.stringValue.count > 0 ? sender.stringValue : "RootClass"

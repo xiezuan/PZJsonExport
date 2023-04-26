@@ -16,6 +16,8 @@ class PZJsonInfo {
     
     var rootClassName: String = "RootClass"
     var classPrefix: String?
+    var removeComplex:Bool = true
+    
     
     var classNames: [String] = []
     /// 字典中的数组映射表，key: 当前字典名, value 对应的数组名
@@ -339,10 +341,16 @@ fileprivate extension PZParse {
 //    }
 //
     func singularize(_ word: String) -> String {
+        
+        if jsonInfo.removeComplex == false {
+            return word
+        }
+        
         //两个字母的不判断
         if(word.count < 3){
             return word
         }
+        
         
         
      //   let vowels: CharacterSet = .init(charactersIn: "aeiouAEIOU")
@@ -432,9 +440,23 @@ fileprivate extension PZParse {
 fileprivate extension String {
     // from : https://stackoverflow.com/a/26306372
     func capitalizingFirstLetter() -> String {
-        return prefix(1).uppercased() + dropFirst()
+        return underscoreToCamelCase(prefix(1).uppercased() + dropFirst())
     }
     
+    
+    //下划线驼峰命名转换
+    func underscoreToCamelCase(_ inputString: String) -> String {
+        let words = inputString.split { $0 == "_" }
+        var outputString = ""
+        for (index, word) in words.enumerated() {
+            if index == 0 {
+                outputString += word
+            } else {
+                outputString += word.prefix(1).capitalized + word.dropFirst()
+            }
+        }
+        return outputString
+    }
 
     
     mutating func capitalizeFirstLetter() {
