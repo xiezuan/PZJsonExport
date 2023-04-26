@@ -150,13 +150,13 @@ class PZParse {
         var tmpString = ""
         for className in jsonInfo.classNames.reversed() {
             let prefix = jsonInfo.classPrefix ?? ""
-			if className ==  jsonInfo.rootClassName {
-				 tmpString.append("\n@implementation \(className.capitalizingFirstLetter())\n")
-			} else {
-				 tmpString.append("\n@implementation \(prefix + className.capitalizingFirstLetter())\n")
-			}
+            if className ==  jsonInfo.rootClassName {
+                 tmpString.append("\n@implementation \(className.capitalizingFirstLetter())\n")
+            } else {
+                 tmpString.append("\n@implementation \(prefix + className.capitalizingFirstLetter())\n")
+            }
             if let mappingClassName = jsonInfo.mappingTable[className] {
-                tmpString.append("\n+ (NSDictionary *)objectClassInArray {\n \treturn @{@\"\(mappingClassName)\" : [\(prefix + mappingClassName.capitalizingFirstLetter()) class]};\n}\n")
+                tmpString.append("\n+ (NSDictionary *)mj_objectClassInArray {\n \treturn @{@\"\(mappingClassName)\" : [\(prefix + mappingClassName.capitalizingFirstLetter()) class]};\n}\n")
             }
             if let mappingKeywords = jsonInfo.mappingKeywordsTable[className] {
                 tmpString.append("\n+ (NSDictionary *)mj_replacedKeyFromPropertyName {\n \treturn @{\(mappingKeywords.map{$0+","}.reduce("", +))};\n}\n")
@@ -170,6 +170,9 @@ class PZParse {
 
 // MARK: - parse
 fileprivate extension PZParse {
+    
+    
+    
     // 其中 json: JSON 是字典
     func parse(_ className: String? = nil, json: JSON) {
         let shared = PZJsonInfo.shared
@@ -179,6 +182,7 @@ fileprivate extension PZParse {
                 tmpClassName = tmpName
             }
         }
+        
     
         var headerInfoString = ""
         for (name,subJson):(String, JSON) in json {
@@ -190,6 +194,13 @@ fileprivate extension PZParse {
             }
             
             var key = name
+            
+            if subJson.type == .array{
+                //如果是数组类名去掉复数
+                //tmpClassName = pluralize(tmpClassName)
+                key = singularize(key)
+            }
+            
             if  check(name) == true {
                 key += KEYWORDSUFFIX
                 if jsonInfo.mappingKeywordsTable[tmpClassName] == nil {
@@ -237,12 +248,128 @@ fileprivate extension PZParse {
                 qualifier = "strong"
                 type = "NSObject *"
             }
-            headerInfoString.append("@property (nonatomic, \(qualifier)) \(type) \(key);\n")
+            
+            if  subJson.type  == .array {
+                headerInfoString.append("@property (nonatomic, \(qualifier)) \(type) \(name);\n")
+            }else{
+                headerInfoString.append("@property (nonatomic, \(qualifier)) \(type) \(key);\n")
+            }
         }
         shared.headerInfo[tmpClassName] = headerInfoString
         if  shared.classNames.contains(tmpClassName) == false {
             shared.classNames.append(tmpClassName)
         }
+    }
+    
+    func formatArrayClassName(_ name: String) -> String {
+        var myString = name
+        if myString.hasSuffix("s") || myString.hasSuffix("es") {
+            myString = String(myString.dropLast())
+            if myString.hasSuffix("e") {
+                myString = String(myString.dropLast())
+            }
+        }
+        return myString
+    }
+    
+    
+    /*
+     根据名词复数变化规则
+     1.一般情况加s。
+     2.以s，x，sh，ch结尾加es，读/iz/。
+     3.以辅音字母+y结尾，变y为i再加es，读/iz/。
+     4.以y结尾的专有名词或元音字母+y结尾的名词变复数时，直接加s，读/z/。
+     6.以f，fe结尾，去f，fe变ves。
+     */
+    
+   
+    
+//
+//    func pluralize(_ word: String) -> String {
+//        // 判断是否以 s, x, sh, ch 结尾，如果是，加 es
+//        if word.hasSuffix("s") || word.hasSuffix("x") || word.hasSuffix("sh") || word.hasSuffix("ch") {
+//            return word + "es"
+//        }
+//        // 判断是否以辅音字母 + y 结尾，如果是，变 y 为 i，再加 es
+//        if word.hasSuffix("y") && !word.hasSuffix("ay") && !word.hasSuffix("ey") && !word.hasSuffix("iy") && !word.hasSuffix("oy") && !word.hasSuffix("uy") {
+//            let index = word.index(word.endIndex, offsetBy: -1)
+//            let beforeY = word[..<index]
+//            let lastChar = String(beforeY.last!)
+//            if !lastChar.isVowel {
+//                return beforeY + "ies"
+//            } else {
+//                return beforeY + "s"
+//            }
+//        }
+//        // 判断是否以 o 结尾，如果是，有些加 s，有些加 es
+//        if word.hasSuffix("o") {
+//            let index = word.index(word.endIndex, offsetBy: -1)
+//            let secondLastChar = word[index]
+//            if String(secondLastChar).rangeOfCharacter(from: .vowels) == nil {
+//                return word + "es"
+//            } else {
+//                return word + "s"
+//            }
+//        }
+//        // 判断是否以 f 或 fe 结尾，如果是，去掉 f 或 fe，加 ves
+//        if word.hasSuffix("f") {
+//            let index = word.index(word.endIndex, offsetBy: -1)
+//            let beforeF = word[..<index]
+//            return beforeF + "ves"
+//        }
+//        if word.hasSuffix("fe") {
+//            let index = word.index(word.endIndex, offsetBy: -2)
+//            let beforeFe = word[..<index]
+//            return beforeFe + "ves"
+//        }
+//        // 其他情况，直接加 s
+//        return word + "s"
+//    }
+//
+    func singularize(_ word: String) -> String {
+        //两个字母的不判断
+        if(word.count < 3){
+            return word
+        }
+        
+        
+     //   let vowels: CharacterSet = .init(charactersIn: "aeiouAEIOU")
+        
+        // 判断是否以 s, x, sh, ch 结尾，如果是，去掉 es
+        if word.hasSuffix("ses") || word.hasSuffix("xes")  ||  word.hasSuffix("shes") || word.hasSuffix("ches") {
+            let index = word.index(word.endIndex, offsetBy: -2)
+            return String(word[..<index])
+        }
+        // 判断是否以辅音字母 + y 结尾，如果是，变 y 为 i，再加 es
+        if word.hasSuffix("ies") && !word.hasSuffix("aies") && !word.hasSuffix("eies") && !word.hasSuffix("iies") && !word.hasSuffix("oies") && !word.hasSuffix("uies") {
+            let index = word.index(word.endIndex, offsetBy: -3)
+            let beforeIes = word[..<index]
+            let lastChar = String(beforeIes.last!)
+            if !lastChar.isVowel {
+                return beforeIes + "y"
+            } else {
+                return beforeIes + "s"
+            }
+        }
+        // 判断是否以 ves 结尾，如果是，去掉 ves，加 f 或 fe
+        if word.hasSuffix("ves") {
+            let index = word.index(word.endIndex, offsetBy: -3)
+            let beforeVes = word[..<index]
+            let lastTwoChars = word[index...]
+            if lastTwoChars == "ves" && beforeVes.hasSuffix("f") {
+                let index = beforeVes.index(beforeVes.endIndex, offsetBy: -1)
+                return beforeVes[..<index] + "fe"
+            } else {
+                return beforeVes + "f"
+            }
+        }
+        // 其他情况，直接去掉 s
+        if word.hasSuffix("s") {
+            let index = word.index(word.endIndex, offsetBy: -1)
+            return String(word[..<index])
+        }
+        // 否则返回原字符串
+        return word
     }
     
     /// 检测属性名是否包含关键字
@@ -296,8 +423,26 @@ fileprivate extension String {
         return prefix(1).uppercased() + dropFirst()
     }
     
+
+    
     mutating func capitalizeFirstLetter() {
         self = self.capitalizingFirstLetter()
     }
 }
 
+
+extension Character {
+    var isVowel: Bool {
+        return "aeiouAEIOU".contains(self)
+    }
+}
+//
+extension String {
+ 
+
+    var isVowel: Bool {
+        return "aeiouAEIOU".contains(self)
+    }
+
+
+}
