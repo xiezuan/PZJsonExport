@@ -19,7 +19,7 @@ class PZJsonInfo {
     
     var classNames: [String] = []
     /// 字典中的数组映射表，key: 当前字典名, value 对应的数组名
-    var mappingTable: [String: String] = [:]
+    var mappingTable: [String:Array<String>] = [String: Array]()
     /// 关键字替换映射表，key 是类名，value 是对应关系数组.
     /// 如：id -> idField, value 是 [@"idField":@"id"]， key 是 A（类名）
     var mappingKeywordsTable: [String: Array<String>] = [String: Array]()
@@ -155,13 +155,16 @@ class PZParse {
             } else {
                  tmpString.append("\n@implementation \(prefix + className.capitalizingFirstLetter())\n")
             }
-            if let mappingClassName = jsonInfo.mappingTable[className] {
-                tmpString.append("\n+ (NSDictionary *)mj_objectClassInArray {\n \treturn @{@\"\(mappingClassName)\" : [\(prefix + mappingClassName.capitalizingFirstLetter()) class]};\n}\n")
+            if let mappingClassArray = jsonInfo.mappingTable[className] {
+                tmpString.append("\n+ (NSDictionary *)mj_objectClassInArray {\n \treturn @{\(mappingClassArray.map{$0+","}.reduce("", +))};\n}\n")
             }
             if let mappingKeywords = jsonInfo.mappingKeywordsTable[className] {
                 tmpString.append("\n+ (NSDictionary *)mj_replacedKeyFromPropertyName {\n \treturn @{\(mappingKeywords.map{$0+","}.reduce("", +))};\n}\n")
             }
             tmpString.append("\n@end\n")
+            
+            print(tmpString)
+        
         }
         
         return tmpString
@@ -216,7 +219,16 @@ fileprivate extension PZParse {
                 let first = subJson.arrayValue.first
                 if  first?.type == .dictionary {
                     type = "NSArray <\(jsonInfo.classPrefix ?? "")\(key.capitalizingFirstLetter()) *> *"
-                    shared.mappingTable[tmpClassName] = key
+                  
+                    
+                    if jsonInfo.mappingTable[tmpClassName] == nil {
+                        jsonInfo.mappingTable[tmpClassName] = ["@\"\(name)\":[\(jsonInfo.classPrefix ?? "")\(key.capitalizingFirstLetter()) class]\n"]
+                    } else {
+                        jsonInfo.mappingTable[tmpClassName]?.append("@\"\(name)\":[\(jsonInfo.classPrefix ?? "")\(key.capitalizingFirstLetter()) class]\n")
+                    }
+                    
+                    
+                    
                     self.parse(key, json: first!)
                 } else if first?.type == .string {
                     type = "NSArray <NSString *> *"
